@@ -1,12 +1,22 @@
 from tkinter import Tk, Button, Label, Scrollbar, Listbox, StringVar, Entry, W, E, N, S, END
 from tkinter import ttk
 from tkinter import messagebox
-from mysqlserver_config import dbConfig
+from mysqlserver_config_orig import dbConfig
 import pymysql
 
 # create connection
 con = pymysql.Connect(**dbConfig)
 print(con)
+
+# creating cursor object to execute sql commands in db session
+cursor = con.cursor()
+class Bookdb:
+    def __init__(self):
+        self.con = pymysql.connect(**dbConfig)
+        self.cursor = con.cursor()
+        print('You have connected to database')
+        print(con)
+ 
 
 root = Tk()
 root.title("My Books Database Application")
