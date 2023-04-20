@@ -6,17 +6,71 @@ import pymysql
 
 # create connection
 con = pymysql.Connect(**dbConfig)
-print(con)
 
 # creating cursor object to execute sql commands in db session
 cursor = con.cursor()
+
+# creating/connecting database object
 class Bookdb:
-    def __init__(self):
-        self.con = pymysql.connect(**dbConfig)
-        self.cursor = con.cursor()
-        print('You have connected to database')
-        print(con)
- 
+    def __init__(self, dbConfig):
+        self.con = None
+        self.cursor = None
+
+        # connecting database
+        try:
+            self.con = pymysql.connect(**dbConfig)
+            self.cursor = self.con.cursor()
+            print('You have connected to database')
+            print(self.con)
+        
+        # if a problem occour while connecting database
+        except Exception as e:
+            print('A problem has occurred while connecting to the database:', e)
+
+    # losing connection with database
+    def deleter(self):
+        if self.con:
+            self.con.close()
+            print('Database connection closed')
+            del self.cursor
+        else:
+            print('No active connection to close')
+
+    # viewing function
+    def view(self):
+        self.cursor.execute('SELECT * FROM mybooks')
+        rows = self.cursor.fetchall()
+        return rows
+    
+    # inserting records function
+    def insert(self):
+        ins_sql = ('INSERT INTO mybooks(title, author, isbn) VALUES (?,?,?,?)')
+        values = [title, author, isbn]
+        self.cursor.execute(ins_sql, values)
+        self.con.commit() # each operation which changes db must commited
+        messagebox.showinfo(title='Book Database', message="New book added to database")
+
+    # updating records function
+    def update(self, id, title, author, isbn):
+        upd_sql ='UPDATE mybooks SET title=?, author=?, isbn=? WHERE id=?'
+        self.cursor.execute(upd_sql, [title, author, isbn, id])
+        self.con.commit()
+        messagebox.showinfo(title="Book Database", message="Book UPdated")
+
+    def delete(self, id):
+        delquerry = 'DELETE FROM mybooks WHERE id=?'
+        self.cursor.execute(delquerry, [id])
+        self.con.commit()
+        messagebox.showinfo(title='Book Database', message='Book Deleted')
+
+
+
+book_db = Bookdb(dbConfig)
+# Perform some operations here
+book_db.deleter()
+
+
+
 
 root = Tk()
 root.title("My Books Database Application")
