@@ -3,7 +3,6 @@ from tkinter import ttk
 from tkinter import messagebox
 from mysqlserver_config_git import dbConfig
 import pymysql
-import uuid # to genereate unique ID's
 
 # create connection
 con = pymysql.Connect(**dbConfig)
