@@ -1,8 +1,9 @@
 from tkinter import Tk, Button, Label, Scrollbar, Listbox, StringVar, Entry, W, E, N, S, END
 from tkinter import ttk
 from tkinter import messagebox
-from mysqlserver_config_orig import dbConfig
+from mysqlserver_config_git import dbConfig
 import pymysql
+import uuid # to genereate unique ID's
 
 # create connection
 con = pymysql.Connect(**dbConfig)
@@ -36,42 +37,128 @@ class Bookdb:
         else:
             print('No active connection to close')
 
-    # viewing function
+    # viewing function, fetches all records from db and returns them as rows
     def view(self):
-        self.cursor.execute('SELECT * FROM mybooks')
+        self.cursor.execute('SELECT * FROM books')
         rows = self.cursor.fetchall()
         return rows
     
     # inserting records function
-    def insert(self):
-        ins_sql = ('INSERT INTO mybooks(title, author, isbn) VALUES (?,?,?,?)')
-        values = [title, author, isbn]
+    def insert(self, title, author, isbn):
+        ins_sql = "INSERT INTO books (Title, Author, ISBN) VALUES (%s, %s, %s)"
+        values = (title, author, isbn)
         self.cursor.execute(ins_sql, values)
-        self.con.commit() # each operation which changes db must commited
-        messagebox.showinfo(title='Book Database', message="New book added to database")
+        self.con.commit()
+
+
+
 
     # updating records function
     def update(self, id, title, author, isbn):
-        upd_sql ='UPDATE mybooks SET title=?, author=?, isbn=? WHERE id=?'
-        self.cursor.execute(upd_sql, [title, author, isbn, id])
+        upd_sql = 'UPDATE books SET title=%s, author=%s, isbn=%s WHERE ID=%s'
+        self.cursor.execute(upd_sql, (title, author, isbn, id))
         self.con.commit()
-        messagebox.showinfo(title="Book Database", message="Book UPdated")
+        messagebox.showinfo(title="Book Database", message="Book Updated")
+
 
     def delete(self, id):
-        delquerry = 'DELETE FROM mybooks WHERE id=?'
-        self.cursor.execute(delquerry, [id])
+        delquerry = 'DELETE FROM books WHERE ID=%s'
+        self.cursor.execute(delquerry, (id,))
         self.con.commit()
         messagebox.showinfo(title='Book Database', message='Book Deleted')
 
 
 
+# instance of Bookdb class
 book_db = Bookdb(dbConfig)
-# Perform some operations here
-book_db.deleter()
+
+# function to select books from listbox
+def get_selected_row(event):
+    global selected_tuple
+    if list_bx.curselection():  # Check if the selection is not empty
+        index = list_bx.curselection()[0]
+        selected_tuple = list_bx.get(index)
+
+        # when a book click from listbox, anything on entry will be deleted
+        title_entry.delete(0, 'end')
+        # selected books title shown on entry
+        title_entry.insert('end', selected_tuple[1])
+
+        author_entry.delete(0, 'end')
+        author_entry.insert('end', selected_tuple[2])
+
+        isbn_entry.delete(0, 'end')
+        isbn_entry.insert('end', selected_tuple[3])
 
 
+# viewing records on listbox
+def view_recods():
+    # clearing records from listbox
+    list_bx.delete(0, 'end')
+
+    # fetching records from db and viewing them on listbox
+    for row in book_db.view():
+        list_bx.insert('end', row)
 
 
+# adding new book to db
+def add_book():
+    # Check for empty fields
+    if not title_text.get() or not author_text.get() or not isbn_text.get():
+        messagebox.showerror(title='Book Database', message="All fields must be filled.")
+        return
+
+    try:
+        # Check if the ISBN input is an integer
+        int(isbn_text.get())
+    except ValueError:
+        messagebox.showerror(title='Book Database', message="Invalid ISBN. Please enter an integer value.")
+        return
+
+    # Call the insert method without the unique_id
+    book_db.insert(title_text.get(), author_text.get(), isbn_text.get())
+    list_bx.delete(0, 'end')
+    list_bx.insert('end', (title_text.get(), author_text.get(), isbn_text.get()))
+    title_entry.delete(0, "end") # Clears input after inserting
+    author_entry.delete(0, "end")
+    isbn_entry.delete(0, "end")
+    con.commit()
+
+
+# deleting selected record from db
+def delete_records():
+    book_db.delete(selected_tuple[0])
+    con.commit()
+
+
+# clearing listbox and all entries from records
+def clear_screen():
+    list_bx.delete(0, 'end')
+    title_entry.delete(0, 'end')
+    author_entry.delete(0, 'end')
+    isbn_entry.delete(0, 'end')
+
+
+# updating records
+def update_records():
+    # updates db with inputed record
+    book_db.update(selected_tuple[0], title_text.get(), author_text.get(), isbn_text.get())
+    
+    # clears entry
+    title_entry.delete(0, 'end') # clears input after inserting
+    author_entry.delete(0, 'end')
+    isbn_entry.delete(0, 'end')
+    con.commit()
+
+# closing function
+def on_closing():
+    temp = book_db
+    if messagebox.askokcancel('Quit', 'Do you want to quit?'):
+        root.destroy()
+        del temp
+
+
+# Windows of app
 root = Tk()
 root.title("My Books Database Application")
 root.configure(background="light green")
@@ -100,12 +187,15 @@ isbn_entry = ttk.Entry(root, width=24, textvariable=isbn_text)
 isbn_entry.grid(row=0, column=5, sticky=W)
 
 # adding "Add Book" Button
-add_btn = Button(root, text="Add Book", bg="blue", fg="white", font="helvetica 10 bold", command="")
+add_btn = Button(root, text="Add Book", bg="blue", fg="white", font="helvetica 10 bold", command=add_book)
 add_btn.grid(row=0, column=6, sticky=W)
 
 # adding listbox to display items
 list_bx = Listbox(root, height=16, width=40, font="helvetica 13", bg="light blue")
 list_bx.grid(row=3, column=1, columnspan=6, sticky=W+E, pady=40, padx=15)
+
+# enables to select any book record which shown on listbox
+list_bx.bind('<<ListboxSelect>>', get_selected_row)
 
 # adding scrollbar
 scroll_bar = Scrollbar(root)
@@ -117,26 +207,26 @@ scroll_bar.configure(command=list_bx.yview)
 
 # adding view button
 view_btn = Button(root, text="View all records", bg="black", fg="white",
-                  font="helvetica 10 bold", command="")
+                  font="helvetica 10 bold", command=view_recods)
 view_btn.grid(row=4, column=1)
 
 # adding modify button
-modify_btn = Button(root, text="Modify Record", bg="purple", fg="white", font="helvetica 10 bold", command="")
+modify_btn = Button(root, text="Modify Record", bg="purple", fg="white", font="helvetica 10 bold", command=update_records)
 modify_btn.grid(row=4, column=2)
 
 # adding clear button
 clear_btn = Button(root, text="Clear Screen", bg="maroon", fg="white",
-                   font="helvetica 10 bold", command="")
+                   font="helvetica 10 bold", command=clear_screen)
 clear_btn.grid(row=4, column=3)
 
 # adding exit button
 exit_btn = Button(root, text="Exit Application", bg="blue", fg="white",
-                  font="helvetica 10 bold", command="")
+                  font="helvetica 10 bold", command=root.destroy)
 exit_btn.grid(row=4, column=4)
 
 # adding delete button
 delete_btn = Button(root, text="Delete Record", bg="red", fg="white", 
-                    font="helvetica 10 bold", command="")
+                    font="helvetica 10 bold", command=delete_records)
 delete_btn.grid(row=4, column=5)
 
 # making windows
