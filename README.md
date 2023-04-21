@@ -41,7 +41,7 @@
 
 ## Configuration
 
-    Update the `mysqlserver_config_orig.py` file with your MySQL server credentials:
+    Update the `mysqlserver_config_git.py` file with your MySQL server credentials:
 
 
     dbConfig = {
